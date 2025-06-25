@@ -189,7 +189,8 @@ action:
           - variables:
               zone_str: "{{ states(active_zones_text) | string }}"
               zone_list: >
-                {{ zone_str.split(',') if zone_str else [] }}
+                {% set raw = zone_str.split(',') if zone_str else [] %}
+                {{ raw | map('trim') | select('match', '^climate\\..+') | list }}
           - repeat:
               for_each: "{{ zone_list }}"
               sequence:
@@ -197,7 +198,7 @@ action:
                   data:
                     hvac_mode: heat
                   target:
-                    entity_id: "{{ repeat.item.strip() }}"
+                    entity_id: "{{ repeat.item }}"
           - service: input_boolean.turn_off
             target:
               entity_id: !input override_flag
