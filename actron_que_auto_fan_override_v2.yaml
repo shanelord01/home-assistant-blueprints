@@ -107,14 +107,14 @@ action:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
               overheated: >
                 {% set threshold = setpoint + (temp_threshold | float) %}
-                {% set hot = [] %}
+                {% set ns = namespace(hot=[]) %}
                 {% for zone in upstairs_zones %}
-                  {% set temp = state_attr(zone, 'current_temperature') | float %}
-                  {% if temp > threshold %}
-                    {% set hot = hot + [zone] %}
+                  {% set temp = state_attr(zone, 'current_temperature') %}
+                  {% if temp is not none and temp | float > threshold %}
+                    {% set ns.hot = ns.hot + [zone] %}
                   {% endif %}
                 {% endfor %}
-                {{ hot }}
+                {{ ns.hot }}
           - condition: template
             value_template: "{{ overheated | count > 0 }}"
           - if:
@@ -132,13 +132,13 @@ action:
                     }}
           - variables:
               active_zones: >
-                {% set active = [] %}
+                {% set ns = namespace(active=[]) %}
                 {% for zone in all_zones %}
                   {% if states(zone) == 'heat' %}
-                    {% set active = active + [zone] %}
+                    {% set ns.active = ns.active + [zone] %}
                   {% endif %}
                 {% endfor %}
-                {{ active }}
+                {{ ns.active }}
           - service: input_text.set_value
             data:
               entity_id: !input active_zones_text
@@ -165,8 +165,10 @@ action:
               max_temp: >
                 {% set temps = [] %}
                 {% for zone in upstairs_zones %}
-                  {% set temp = state_attr(zone, 'current_temperature') | float(0) %}
-                  {% set temps = temps + [temp] %}
+                  {% set temp = state_attr(zone, 'current_temperature') %}
+                  {% if temp is not none %}
+                    {% set temps = temps + [temp | float] %}
+                  {% endif %}
                 {% endfor %}
                 {{ temps | max if temps else 0 }}
           - condition: template
