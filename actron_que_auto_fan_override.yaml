@@ -105,7 +105,6 @@ action:
               overheated: >
                 {{
                   upstairs_zones
-                  | select('entity_id')
                   | map('expand')
                   | selectattr('attributes.current_temperature', 'defined')
                   | selectattr('attributes.current_temperature', '>', (setpoint + (temp_threshold | float)))
@@ -128,7 +127,13 @@ action:
                     }}
           - variables:
               active_zones: >
-                {{ all_zones | select('is_state', 'heat') | list }}
+                {{
+                  all_zones
+                  | map('expand')
+                  | selectattr('state', 'equalto', 'heat')
+                  | map(attribute='entity_id')
+                  | list
+                }}
           - service: input_text.set_value
             data:
               entity_id: !input active_zones_text
