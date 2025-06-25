@@ -1,6 +1,8 @@
-This is an edge use case - but I wanted to be able to make my air conditioner change from heat to fan if my upstairs rooms became too hot, 
+This is an edge use case - but I wanted to be able to make my Actron Que air conditioner change from heat to fan if my upstairs rooms became too hot, 
 in order to circulate the hot air around the house. It should then revert to previous state when the temperatures stabilise (so it heats again
 at night time).
+
+I have my air conditioner running thanks to this amazing add-on https://github.com/MikeJMcGuire/hass-actronque - Thanks Mike!
 
 Two helpers need to be created:
 
