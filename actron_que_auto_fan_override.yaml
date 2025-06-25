@@ -65,6 +65,17 @@ blueprint:
       selector:
         boolean:
 
+trigger:
+  - platform: state
+    entity_id: !input upstairs_zones
+    attribute: current_temperature
+  - platform: state
+    entity_id: !input main_controller
+  - platform: state
+    entity_id: !input override_flag
+  - platform: time_pattern
+    minutes: "/5"
+
 variables:
   season_sensor: !input season_sensor
   allowed_seasons: !input allowed_seasons
