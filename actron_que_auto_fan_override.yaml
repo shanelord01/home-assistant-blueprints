@@ -98,7 +98,7 @@ action:
               overheated: >
                 {{
                   upstairs_zones
-                  | select('is_state_not', 'off')
+                  | selectattr('state', 'ne', 'off')
                   | selectattr('attributes.current_temperature', 'defined')
                   | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold | float)
                   | list
