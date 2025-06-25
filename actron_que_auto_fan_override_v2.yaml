@@ -134,7 +134,7 @@ action:
               active_zones: >
                 {% set ns = namespace(active=[]) %}
                 {% for zone_id in all_zones %}
-                  {% if states(zone_id) == 'heat' %}
+                  {% if state_attr(zone_id, 'hvac_mode') == 'heat' %}
                     {% set ns.active = ns.active + [zone_id] %}
                   {% endif %}
                 {% endfor %}
