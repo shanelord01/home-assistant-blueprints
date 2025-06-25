@@ -60,83 +60,90 @@ blueprint:
         entity:
           domain: input_text
 
-variables:
-  setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
-  upstairs_overheated: >
-    {{ upstairs_zones | selectattr('state', 'ne', 'off')
-                     | selectattr('attributes.current_temperature', 'defined')
-                     | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold)
-                     | list | count > 0 }}
-
 trigger:
   - platform: template
-    value_template: "{{ upstairs_overheated }}"
-
-condition:
-  - condition: state
-    entity_id: !input main_controller
-    state: 'heat'
-  - condition: template
     value_template: >
-      {{ state_attr(main_controller, 'hvac_action') == 'heating' }}
-  - condition: template
-    value_template: >
-      {{ state(season_sensor) in allowed_seasons }}
-  - condition: state
-    entity_id: !input override_flag
-    state: 'off'
-
-action:
-  - variables:
-      active_zones: >
-        {{ all_zones | select('is_state', 'heat') | list }}
-  - service: input_text.set_value
-    data:
-      entity_id: !input active_zones_text
-      value: "{{ active_zones | join(',') }}"
-  - service: input_boolean.turn_on
-    target:
-      entity_id: !input override_flag
-  - repeat:
-      for_each: "{{ all_zones }}"
-      sequence:
-        - service: climate.set_hvac_mode
-          data:
-            hvac_mode: fan_only
-          target:
-            entity_id: "{{ repeat.item }}"
-
-mode: restart
-
-# --- Reversion Logic ---
-
-trigger_revert:
+      {% set setpoint = state_attr(main_controller, 'temperature') | float %}
+      {% set overheated = upstairs_zones | selectattr('state', 'ne', 'off')
+                                        | selectattr('attributes.current_temperature', 'defined')
+                                        | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold)
+                                        | list | count > 0 %}
+      {{ overheated }}
   - platform: time_pattern
     minutes: "/5"
 
-condition_revert:
-  - condition: state
-    entity_id: !input override_flag
-    state: 'on'
+condition:
   - condition: template
     value_template: >
-      {% set setpoint = state_attr(main_controller, 'temperature') | float %}
-      {% set max_temp = upstairs_zones | map('state_attr', 'current_temperature') | select('defined') | map('float') | max(default=0) %}
-      {{ max_temp <= setpoint + 1 }}
+      {{ state(season_sensor) in allowed_seasons }}
 
-action_revert:
-  - variables:
-      zone_str: "{{ states(active_zones_text) }}"
-      zone_list: >
-        {{ zone_str.split(',') if zone_str else [] }}
-  - repeat:
-      for_each: "{{ zone_list }}"
-      sequence:
-        - service: climate.set_hvac_mode
-          data:
-            hvac_mode: heat
-          target:
-            entity_id: "{{ repeat.item.strip() }}"
-  - service: input_boolean.turn_off
-    target:
-      entity_id: !input override_flag
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input override_flag
+            state: 'off'
+          - condition: state
+            entity_id: !input main_controller
+            state: 'heat'
+          - condition: template
+            value_template: >
+              {{ state_attr(main_controller, 'hvac_action') == 'heating' }}
+          - condition: template
+            value_template: >
+              {% set setpoint = state_attr(main_controller, 'temperature') | float %}
+              {% set overheated = upstairs_zones | selectattr('state', 'ne', 'off')
+                                                | selectattr('attributes.current_temperature', 'defined')
+                                                | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold)
+                                                | list | count > 0 %}
+              {{ overheated }}
+        sequence:
+          - variables:
+              active_zones: >
+                {{ all_zones | select('is_state', 'heat') | list }}
+          - service: input_text.set_value
+            data:
+              entity_id: !input active_zones_text
+              value: "{{ active_zones | join(',') }}"
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input override_flag
+          - repeat:
+              for_each: "{{ all_zones }}"
+              sequence:
+                - service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: fan_only
+                  target:
+                    entity_id: "{{ repeat.item }}"
+
+      - conditions:
+          - condition: state
+            entity_id: !input override_flag
+            state: 'on'
+          - condition: template
+            value_template: >
+              {% set setpoint = state_attr(main_controller, 'temperature') | float %}
+              {% set max_temp = upstairs_zones | map('state_attr', 'current_temperature')
+                                               | select('defined')
+                                               | map('float')
+                                               | max(default=0) %}
+              {{ max_temp <= setpoint + 1 }}
+        sequence:
+          - variables:
+              zone_str: "{{ states(active_zones_text) }}"
+              zone_list: >
+                {{ zone_str.split(',') if zone_str else [] }}
+          - repeat:
+              for_each: "{{ zone_list }}"
+              sequence:
+                - service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: heat
+                  target:
+                    entity_id: "{{ repeat.item.strip() }}"
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input override_flag
+
+mode: restart
