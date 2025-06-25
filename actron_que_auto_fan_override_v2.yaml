@@ -108,10 +108,10 @@ action:
               overheated: >
                 {% set threshold = setpoint + (temp_threshold | float) %}
                 {% set ns = namespace(hot=[]) %}
-                {% for zone in upstairs_zones %}
-                  {% set temp = state_attr(zone, 'current_temperature') %}
+                {% for zone_id in upstairs_zones %}
+                  {% set temp = state_attr(zone_id, 'current_temperature') %}
                   {% if temp is not none and temp | float > threshold %}
-                    {% set ns.hot = ns.hot + [zone] %}
+                    {% set ns.hot = ns.hot + [zone_id] %}
                   {% endif %}
                 {% endfor %}
                 {{ ns.hot }}
@@ -133,9 +133,9 @@ action:
           - variables:
               active_zones: >
                 {% set ns = namespace(active=[]) %}
-                {% for zone in all_zones %}
-                  {% if states(zone) == 'heat' %}
-                    {% set ns.active = ns.active + [zone] %}
+                {% for zone_id in all_zones %}
+                  {% if states(zone_id) == 'heat' %}
+                    {% set ns.active = ns.active + [zone_id] %}
                   {% endif %}
                 {% endfor %}
                 {{ ns.active }}
@@ -164,8 +164,8 @@ action:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
               max_temp: >
                 {% set temps = [] %}
-                {% for zone in upstairs_zones %}
-                  {% set temp = state_attr(zone, 'current_temperature') %}
+                {% for zone_id in upstairs_zones %}
+                  {% set temp = state_attr(zone_id, 'current_temperature') %}
                   {% if temp is not none %}
                     {% set temps = temps + [temp | float] %}
                   {% endif %}
@@ -187,7 +187,7 @@ action:
                       "°C. Restoring original heat zones."
                     }}
           - variables:
-              zone_str: "{{ states(active_zones_text) }}"
+              zone_str: "{{ states(active_zones_text) | string }}"
               zone_list: >
                 {{ zone_str.split(',') if zone_str else [] }}
           - repeat:
