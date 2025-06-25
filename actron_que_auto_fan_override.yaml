@@ -72,7 +72,7 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {{ states(season_sensor) in allowed_seasons }}
+      {{ states(states('season_sensor')) in allowed_seasons }}
 
 action:
   - variables:
@@ -92,18 +92,19 @@ action:
           - condition: state
             entity_id: !input main_controller
             state: 'heat'
-          - condition: template
-            value_template: >
-              {{ state_attr(main_controller, 'hvac_action') == 'heating' }}
-          - condition: template
-            value_template: >
-              {% set setpoint = state_attr(main_controller, 'temperature') | float %}
-              {% set overheated = upstairs_zones | selectattr('state', 'ne', 'off')
-                                                | selectattr('attributes.current_temperature', 'defined')
-                                                | selectattr('attributes.current_temperature', '>', setpoint + (temp_threshold | float))
-                                                | list | count > 0 %}
-              {{ overheated }}
         sequence:
+          - variables:
+              setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
+              overheated: >
+                {{
+                  upstairs_zones
+                  | select('is_state_not', 'off')
+                  | selectattr('attributes.current_temperature', 'defined')
+                  | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold | float)
+                  | list
+                }}
+          - condition: template
+            value_template: "{{ overheated | count > 0 }}"
           - if:
               - condition: template
                 value_template: "{{ logging_enabled }}"
@@ -114,7 +115,7 @@ action:
                   message: >
                     {{
                       "Upstairs zone exceeded " ~
-                      (state_attr(main_controller, 'temperature') + (temp_threshold | float)) ~
+                      (setpoint + (temp_threshold | float)) ~
                       "°C. Switching all zones to fan-only."
                     }}
           - variables:
@@ -140,15 +141,19 @@ action:
           - condition: state
             entity_id: !input override_flag
             state: 'on'
-          - condition: template
-            value_template: >
-              {% set setpoint = state_attr(main_controller, 'temperature') | float %}
-              {% set max_temp = upstairs_zones | map('state_attr', 'current_temperature')
-                                               | select('defined')
-                                               | map('float')
-                                               | max(default=0) %}
-              {{ max_temp <= setpoint + 1 }}
         sequence:
+          - variables:
+              setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
+              max_temp: >
+                {{
+                  upstairs_zones
+                  | map('state_attr', 'current_temperature')
+                  | select('defined')
+                  | map('float')
+                  | max(default=0)
+                }}
+          - condition: template
+            value_template: "{{ max_temp <= setpoint + 1 }}"
           - if:
               - condition: template
                 value_template: "{{ logging_enabled }}"
@@ -159,7 +164,7 @@ action:
                   message: >
                     {{
                       "Upstairs zones have cooled below " ~
-                      (state_attr(main_controller, 'temperature') + 1) ~
+                      (setpoint + 1) ~
                       "°C. Restoring original heat zones."
                     }}
           - variables:
