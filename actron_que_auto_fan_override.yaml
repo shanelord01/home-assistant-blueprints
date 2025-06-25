@@ -78,6 +78,9 @@ condition:
       {{ state(season_sensor) in allowed_seasons }}
 
 action:
+  - variables:
+      all_zones: !input all_zones
+
   - choose:
       - conditions:
           - condition: state
