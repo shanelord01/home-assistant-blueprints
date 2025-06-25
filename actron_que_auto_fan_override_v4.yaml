@@ -171,9 +171,10 @@ action:
                     entity_id: "{{ repeat.item }}"
 
       - conditions:
-          - condition: state
-            entity_id: !input override_flag
-            state: 'on'
+          - condition: template
+            value_template: >
+              {% set zone_str = states(active_zones_text) | string %}
+              {{ zone_str | trim != '' }}
         sequence:
           - variables:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
