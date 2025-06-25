@@ -72,7 +72,7 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {{ states(states('season_sensor')) in allowed_seasons }}
+      {{ states(season_sensor) in allowed_seasons }}
 
 action:
   - variables:
