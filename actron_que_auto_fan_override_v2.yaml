@@ -187,7 +187,7 @@ action:
                       "°C. Restoring original heat zones."
                     }}
           - variables:
-              zone_str: "{{ states[active_zones_text] }}"
+              zone_str: "{{ states(active_zones_text) }}"
               zone_list: >
                 {{ zone_str.split(',') if zone_str else [] }}
           - repeat:
