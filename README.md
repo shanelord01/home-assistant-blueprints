@@ -22,5 +22,13 @@ Two helpers need to be created:
   Maximum Length: 255
 - Click Create.
 
+3. Cooldown Time (Ensures revert doesn't run immediately)
+- Still in Helpers, click + Create Helper again.
+- Select Timer.
+- Set:
+  Name: Actron Cooldown Timer
+  Duration: 00:05:00
+- Click Create.
+
 Then when you import the blueprint, select all of your upstairs zones you want to include, and then all of your zones (not including the main controller), 
 then season sensor and the helpers. You can then adjust the acceptable temp difference.
