@@ -70,30 +70,29 @@ trigger:
     entity_id: !input main_controller
   - platform: state
     entity_id: !input override_flag
-  - platform: state
-    entity_id: !input upstairs_zones
-    attribute: current_temperature
   - platform: time_pattern
     minutes: "/5"
 
-action:
-  - variables:
-      all_zones: !input all_zones
-      upstairs_zones: !input upstairs_zones
-      main_controller: !input main_controller
-      temp_threshold: !input temp_threshold
-      logging_enabled: !input enable_logging
-      override_flag: !input override_flag
-      active_zones_text: !input active_zones_text
-      season_sensor: !input season_sensor
-      allowed_seasons: !input allowed_seasons
+variables:
+  all_zones: !input all_zones
+  upstairs_zones: !input upstairs_zones
+  main_controller: !input main_controller
+  temp_threshold: !input temp_threshold
+  logging_enabled: !input enable_logging
+  override_flag: !input override_flag
+  active_zones_text: !input active_zones_text
+  season_sensor: !input season_sensor
+  allowed_seasons: !input allowed_seasons
 
+condition:
+  - condition: template
+    value_template: >
+      {% set season = states(season_sensor) %}
+      {{ season in allowed_seasons }}
+
+action:
   - choose:
       - conditions:
-          - condition: template
-            value_template: >
-              {% set season = states(season_sensor) %}
-              {{ season in allowed_seasons }}
           - condition: state
             entity_id: !input override_flag
             state: 'off'
@@ -106,8 +105,8 @@ action:
               overheated: >
                 {{
                   upstairs_zones
-                  | selectattr('state', 'defined')
-                  | selectattr('state', 'ne', 'off')
+                  | select('entity_id')
+                  | map('expand')
                   | selectattr('attributes.current_temperature', 'defined')
                   | selectattr('attributes.current_temperature', '>', (setpoint + (temp_threshold | float)))
                   | list
@@ -123,7 +122,7 @@ action:
                   title: "Actron Override Triggered"
                   message: >
                     {{
-                      "Upstairs zone exceeded " ~
+                      "One or more upstairs zones exceeded " ~
                       (setpoint + (temp_threshold | float)) ~
                       "°C. Switching all zones to fan-only."
                     }}
