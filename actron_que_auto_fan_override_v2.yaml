@@ -1,0 +1,199 @@
+blueprint:
+  name: Actron Que - Auto Fan Override on Overheat v2
+  description: >
+    In colder seasons, switch Actron Que system to 'fan_only' mode if upstairs zones 
+    overheat during heating. Automatically revert when temps stabilize.
+  domain: automation
+  input:
+    main_controller:
+      name: Main Controller Entity
+      selector:
+        entity:
+          domain: climate
+    upstairs_zones:
+      name: Upstairs Climate Zones
+      selector:
+        entity:
+          multiple: true
+          domain: climate
+    all_zones:
+      name: All Zone Entities
+      selector:
+        entity:
+          multiple: true
+          domain: climate
+    season_sensor:
+      name: Season Sensor (e.g. sensor.season)
+      selector:
+        entity:
+          domain: sensor
+    allowed_seasons:
+      name: Allowed Seasons (trigger only in these)
+      default:
+        - winter
+        - autumn
+      selector:
+        select:
+          multiple: true
+          options:
+            - spring
+            - summer
+            - autumn
+            - winter
+    temp_threshold:
+      name: Temp Overheat Threshold (°C above setpoint)
+      default: 2
+      selector:
+        number:
+          min: 0.5
+          max: 5
+          step: 0.5
+          unit_of_measurement: °C
+    override_flag:
+      name: Input Boolean - Temp Override Active
+      selector:
+        entity:
+          domain: input_boolean
+    active_zones_text:
+      name: Input Text - Active Zones Storage
+      selector:
+        entity:
+          domain: input_text
+    enable_logging:
+      name: Enable Logging (Notifications in Trace)
+      default: false
+      selector:
+        boolean:
+
+trigger:
+  - platform: state
+    entity_id: !input main_controller
+  - platform: state
+    entity_id: !input override_flag
+  - platform: time_pattern
+    minutes: "/5"
+
+variables:
+  all_zones: !input all_zones
+  upstairs_zones: !input upstairs_zones
+  main_controller: !input main_controller
+  temp_threshold: !input temp_threshold
+  logging_enabled: !input enable_logging
+  override_flag: !input override_flag
+  active_zones_text: !input active_zones_text
+  season_sensor: !input season_sensor
+  allowed_seasons: !input allowed_seasons
+
+condition:
+  - condition: template
+    value_template: >
+      {% set season = states(season_sensor) %}
+      {{ season in allowed_seasons }}
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input override_flag
+            state: 'off'
+          - condition: state
+            entity_id: !input main_controller
+            state: 'heat'
+        sequence:
+          - variables:
+              setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
+              overheated: >
+                {{
+                  upstairs_zones
+                  | map('expand')
+                  | selectattr('attributes.current_temperature', 'defined')
+                  | selectattr('attributes.current_temperature', '>', (setpoint + (temp_threshold | float)))
+                  | list
+                }}
+          - condition: template
+            value_template: "{{ overheated | count > 0 }}"
+          - if:
+              - condition: template
+                value_template: "{{ logging_enabled }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Actron Override Triggered"
+                  message: >
+                    {{
+                      "One or more upstairs zones exceeded " ~
+                      (setpoint + (temp_threshold | float)) ~
+                      "°C. Switching all zones to fan-only."
+                    }}
+          - variables:
+              active_zones: >
+                {{
+                  all_zones
+                  | map('expand')
+                  | selectattr('state', 'equalto', 'heat')
+                  | map(attribute='entity_id')
+                  | list
+                }}
+          - service: input_text.set_value
+            data:
+              entity_id: !input active_zones_text
+              value: "{{ active_zones | join(',') }}"
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input override_flag
+          - repeat:
+              for_each: "{{ all_zones }}"
+              sequence:
+                - service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: fan_only
+                  target:
+                    entity_id: "{{ repeat.item }}"
+
+      - conditions:
+          - condition: state
+            entity_id: !input override_flag
+            state: 'on'
+        sequence:
+          - variables:
+              setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
+              max_temp: >
+                {{
+                  upstairs_zones
+                  | map('state_attr', 'current_temperature')
+                  | select('defined')
+                  | map('float')
+                  | max(default=0)
+                }}
+          - condition: template
+            value_template: "{{ max_temp <= (setpoint + 1) }}"
+          - if:
+              - condition: template
+                value_template: "{{ logging_enabled }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Actron Reversion Triggered"
+                  message: >
+                    {{
+                      "Upstairs zones have cooled below " ~
+                      (setpoint + 1) ~
+                      "°C. Restoring original heat zones."
+                    }}
+          - variables:
+              zone_str: "{{ states[active_zones_text] }}"
+              zone_list: >
+                {{ zone_str.split(',') if zone_str else [] }}
+          - repeat:
+              for_each: "{{ zone_list }}"
+              sequence:
+                - service: climate.set_hvac_mode
+                  data:
+                    hvac_mode: heat
+                  target:
+                    entity_id: "{{ repeat.item.strip() }}"
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input override_flag
+
+mode: restart
