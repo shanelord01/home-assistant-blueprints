@@ -150,9 +150,8 @@ action:
                 {{ ns.active }}
               encoded_zones: "{{ active_zones | join('||') }}"
           - service: input_text.set_value
-            target:
-              entity_id: !input active_zones_text
             data:
+              entity_id: !input active_zones_text
               value: "{{ encoded_zones }}"
           - service: input_boolean.turn_on
             target:
