@@ -148,10 +148,12 @@ action:
                   {% endif %}
                 {% endfor %}
                 {{ ns.active }}
+              encoded_zones: "{{ active_zones | join('||') | b64encode }}"
           - service: input_text.set_value
-            data:
+            target:
               entity_id: !input active_zones_text
-              value: "{{ active_zones | join('||') | b64encode }}"
+            data:
+              value: "{{ encoded_zones }}"
           - service: input_boolean.turn_on
             target:
               entity_id: !input override_flag
