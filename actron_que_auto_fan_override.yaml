@@ -131,7 +131,7 @@ action:
               {{ max_temp <= setpoint + 1 }}
         sequence:
           - variables:
-              zone_str: "{{ states(active_zones_text) }}"
+              zone_str: "{{ states[active_zones_text] }}"
               zone_list: >
                 {{ zone_str.split(',') if zone_str else [] }}
           - repeat:
