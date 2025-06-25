@@ -117,7 +117,7 @@ action:
               overheated: >
                 {% set threshold = setpoint + (temp_threshold | float) %}
                 {% set ns = namespace(hot=[]) %}
-                {% for zone_id in upstairs_zones %}
+                {% for zone_id in upstairs_zones | default([]) %}
                   {% set temp = state_attr(zone_id, 'current_temperature') %}
                   {% if temp is not none and temp | float > threshold %}
                     {% set ns.hot = ns.hot + [zone_id] %}
@@ -142,7 +142,7 @@ action:
           - variables:
               active_zones: >
                 {% set ns = namespace(active=[]) %}
-                {% for zone_id in all_zones %}
+                {% for zone_id in all_zones | default([]) %}
                   {% if state_attr(zone_id, 'hvac_mode') == 'heat' %}
                     {% set ns.active = ns.active + [zone_id] %}
                   {% endif %}
@@ -151,7 +151,8 @@ action:
           - service: input_text.set_value
             data:
               entity_id: !input active_zones_text
-              value: "{{ (active_zones | join('||')) | b64encode | string }}"
+              value: >
+                {{ (active_zones | join('||')) | b64encode | string }}
           - service: input_boolean.turn_on
             target:
               entity_id: !input override_flag
@@ -161,7 +162,7 @@ action:
             data:
               duration: "00:10:00"
           - repeat:
-              for_each: "{{ all_zones }}"
+              for_each: "{{ all_zones | default([]) }}"
               sequence:
                 - service: climate.set_hvac_mode
                   data:
@@ -178,7 +179,7 @@ action:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
               max_temp: >
                 {% set temps = [] %}
-                {% for zone_id in upstairs_zones %}
+                {% for zone_id in upstairs_zones | default([]) %}
                   {% set temp = state_attr(zone_id, 'current_temperature') %}
                   {% if temp is not none %}
                     {% set temps = temps + [temp | float] %}
@@ -206,7 +207,7 @@ action:
                 {% set raw = zone_str.split('||') if zone_str else [] %}
                 {{ raw | map('trim') | select('match', '^climate\\..+') | list }}
           - repeat:
-              for_each: "{{ zone_list }}"
+              for_each: "{{ zone_list | default([]) }}"
               sequence:
                 - service: climate.set_hvac_mode
                   data:
