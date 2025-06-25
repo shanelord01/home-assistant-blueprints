@@ -86,6 +86,9 @@ condition:
 action:
   - variables:
       all_zones: !input all_zones
+      upstairs_zones: !input upstairs_zones
+      main_controller: !input main_controller
+      temp_threshold: !input temp_threshold
       logging_enabled: !input enable_logging
 
   - choose:
@@ -98,13 +101,13 @@ action:
             state: 'heat'
           - condition: template
             value_template: >
-              {{ state_attr(!input main_controller, 'hvac_action') == 'heating' }}
+              {{ state_attr(main_controller, 'hvac_action') == 'heating' }}
           - condition: template
             value_template: >
-              {% set setpoint = state_attr(!input main_controller, 'temperature') | float %}
-              {% set overheated = !input upstairs_zones | selectattr('state', 'ne', 'off')
+              {% set setpoint = state_attr(main_controller, 'temperature') | float %}
+              {% set overheated = upstairs_zones | selectattr('state', 'ne', 'off')
                                                 | selectattr('attributes.current_temperature', 'defined')
-                                                | selectattr('attributes.current_temperature', '>', setpoint + (!input temp_threshold | float))
+                                                | selectattr('attributes.current_temperature', '>', setpoint + (temp_threshold | float))
                                                 | list | count > 0 %}
               {{ overheated }}
         sequence:
@@ -115,7 +118,12 @@ action:
               - service: persistent_notification.create
                 data:
                   title: "Actron Override Triggered"
-                  message: "Upstairs zone exceeded {{ state_attr(!input main_controller, 'temperature') + (!input temp_threshold | float) }}°C. Switching all zones to fan-only."
+                  message: >
+                    {{
+                      "Upstairs zone exceeded " ~
+                      (state_attr(main_controller, 'temperature') + (temp_threshold | float)) ~
+                      "°C. Switching all zones to fan-only."
+                    }}
           - variables:
               active_zones: >
                 {{ all_zones | select('is_state', 'heat') | list }}
@@ -141,8 +149,8 @@ action:
             state: 'on'
           - condition: template
             value_template: >
-              {% set setpoint = state_attr(!input main_controller, 'temperature') | float %}
-              {% set max_temp = !input upstairs_zones | map('state_attr', 'current_temperature')
+              {% set setpoint = state_attr(main_controller, 'temperature') | float %}
+              {% set max_temp = upstairs_zones | map('state_attr', 'current_temperature')
                                                | select('defined')
                                                | map('float')
                                                | max(default=0) %}
@@ -155,7 +163,12 @@ action:
               - service: persistent_notification.create
                 data:
                   title: "Actron Reversion Triggered"
-                  message: "Upstairs zones have cooled below {{ state_attr(!input main_controller, 'temperature') + 1 }}°C. Restoring original heat zones."
+                  message: >
+                    {{
+                      "Upstairs zones have cooled below " ~
+                      (state_attr(main_controller, 'temperature') + 1) ~
+                      "°C. Restoring original heat zones."
+                    }}
           - variables:
               zone_str: "{{ states[active_zones_text] }}"
               zone_list: >
