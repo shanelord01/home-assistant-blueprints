@@ -22,5 +22,5 @@ Two helpers need to be created:
   Maximum Length: 255
 - Click Create.
 
-Then when you import the blueprint, select all of your upstairs zones you want to include, and then all of your zones, then season sensor and the helpers. 
-You can then adjust the acceptable temp difference.
+Then when you import the blueprint, select all of your upstairs zones you want to include, and then all of your zones (not including the main controller), 
+then season sensor and the helpers. You can then adjust the acceptable temp difference.
