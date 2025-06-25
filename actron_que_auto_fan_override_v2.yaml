@@ -64,6 +64,11 @@ blueprint:
       default: false
       selector:
         boolean:
+    cooldown_timer:
+      name: Cooldown Timer
+      selector:
+        entity:
+          domain: timer
 
 trigger:
   - platform: state
@@ -83,6 +88,7 @@ variables:
   active_zones_text: !input active_zones_text
   season_sensor: !input season_sensor
   allowed_seasons: !input allowed_seasons
+  cooldown_timer: !input cooldown_timer
 
 condition:
   - condition: template
@@ -92,6 +98,9 @@ condition:
       {% else %}
         false
       {% endif %}
+  - condition: state
+    entity_id: !input cooldown_timer
+    state: "idle"
 
 action:
   - choose:
@@ -142,10 +151,15 @@ action:
           - service: input_text.set_value
             data:
               entity_id: !input active_zones_text
-              value: "{{ active_zones | join(',') }}"
+              value: "{{ active_zones | join('||') | b64encode }}"
           - service: input_boolean.turn_on
             target:
               entity_id: !input override_flag
+          - service: timer.start
+            target:
+              entity_id: !input cooldown_timer
+            data:
+              duration: "00:10:00"
           - repeat:
               for_each: "{{ all_zones }}"
               sequence:
@@ -187,9 +201,9 @@ action:
                       "°C. Restoring original heat zones."
                     }}
           - variables:
-              zone_str: "{{ states(active_zones_text) | string }}"
+              zone_str: "{{ states(active_zones_text) | string | b64decode }}"
               zone_list: >
-                {% set raw = zone_str.split(',') if zone_str else [] %}
+                {% set raw = zone_str.split('||') if zone_str else [] %}
                 {{ raw | map('trim') | select('match', '^climate\\..+') | list }}
           - repeat:
               for_each: "{{ zone_list }}"
