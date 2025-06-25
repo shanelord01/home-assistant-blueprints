@@ -93,11 +93,9 @@ variables:
 condition:
   - condition: template
     value_template: >
-      {% if season_sensor is defined and allowed_seasons is defined and states(season_sensor) %}
-        {{ states(season_sensor) in allowed_seasons }}
-      {% else %}
-        false
-      {% endif %}
+      {% set season_id = season_sensor | string %}
+      {% set season_val = states(season_id) if season_id in states else 'unknown' %}
+      {{ season_val in allowed_seasons }}
   - condition: state
     entity_id: !input cooldown_timer
     state: "idle"
