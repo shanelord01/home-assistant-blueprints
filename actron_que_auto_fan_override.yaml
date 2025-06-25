@@ -59,6 +59,11 @@ blueprint:
       selector:
         entity:
           domain: input_text
+    enable_logging:
+      name: Enable Logging (Notifications in Trace)
+      default: false
+      selector:
+        boolean:
 
 trigger:
   - platform: template
@@ -80,6 +85,7 @@ condition:
 action:
   - variables:
       all_zones: !input all_zones
+      logging_enabled: !input enable_logging
 
   - choose:
       - conditions:
@@ -101,6 +107,14 @@ action:
                                                 | list | count > 0 %}
               {{ overheated }}
         sequence:
+          - if:
+              - condition: template
+                value_template: "{{ logging_enabled }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Actron Override Triggered"
+                  message: "Upstairs zone exceeded {{ state_attr(main_controller, 'temperature') + temp_threshold }}°C. Switching all zones to fan-only."
           - variables:
               active_zones: >
                 {{ all_zones | select('is_state', 'heat') | list }}
@@ -133,6 +147,14 @@ action:
                                                | max(default=0) %}
               {{ max_temp <= setpoint + 1 }}
         sequence:
+          - if:
+              - condition: template
+                value_template: "{{ logging_enabled }}"
+            then:
+              - service: persistent_notification.create
+                data:
+                  title: "Actron Reversion Triggered"
+                  message: "Upstairs zones have cooled below {{ state_attr(main_controller, 'temperature') + 1 }}°C. Restoring original heat zones."
           - variables:
               zone_str: "{{ states[active_zones_text] }}"
               zone_list: >
