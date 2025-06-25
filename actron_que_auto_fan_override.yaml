@@ -65,17 +65,15 @@ blueprint:
       selector:
         boolean:
 
-trigger:
-  - platform: time_pattern
-    minutes: "/5"
+variables:
+  season_sensor: !input season_sensor
+  allowed_seasons: !input allowed_seasons
 
 condition:
-  - condition: and
-    conditions:
-      - condition: state
-        entity_id: !input season_sensor
-        match: any
-        state: !input allowed_seasons
+  - condition: template
+    value_template: >
+      {% set season = states(season_sensor) %}
+      {{ season in allowed_seasons }}
 
 action:
   - variables:
