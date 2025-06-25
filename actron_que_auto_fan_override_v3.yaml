@@ -149,7 +149,7 @@ action:
                 {% endfor %}
                 {{ ns.active }}
           - service: input_text.set_value
-            data:
+            data_template:
               entity_id: !input active_zones_text
               value: "{{ ((active_zones | join('||')) | b64encode) | string }}"
           - service: input_boolean.turn_on
@@ -201,7 +201,7 @@ action:
                       "°C. Restoring original heat zones."
                     }}
           - variables:
-              zone_str: "{{ states(active_zones_text) | string | b64decode }}"
+              zone_str: "{{ states(active_zones_text) | string | default('') | b64decode }}"
               zone_list: >
                 {% set raw = zone_str.split('||') if zone_str else [] %}
                 {{ raw | map('trim') | select('match', '^climate\\..+') | list }}
