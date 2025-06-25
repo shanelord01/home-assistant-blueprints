@@ -1,5 +1,5 @@
 blueprint:
-  name: Actron Que - Auto Fan Override on Overheat v2
+  name: Actron Que - Auto Fan Override on Overheat
   description: >
     In colder seasons, switch Actron Que system to 'fan_only' mode if upstairs zones 
     overheat during heating. Automatically revert when temps stabilize.
@@ -103,13 +103,15 @@ action:
           - variables:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
               overheated: >
-                {{
-                  upstairs_zones
-                  | map('expand')
-                  | selectattr('attributes.current_temperature', 'defined')
-                  | selectattr('attributes.current_temperature', '>', (setpoint + (temp_threshold | float)))
-                  | list
-                }}
+                {% set threshold = setpoint + (temp_threshold | float) %}
+                {% set hot = [] %}
+                {% for zone in upstairs_zones %}
+                  {% set temp = state_attr(zone, 'current_temperature') %}
+                  {% if temp is number and temp > threshold %}
+                    {% set hot = hot + [zone] %}
+                  {% endif %}
+                {% endfor %}
+                {{ hot }}
           - condition: template
             value_template: "{{ overheated | count > 0 }}"
           - if:
