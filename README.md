@@ -22,7 +22,7 @@ Two helpers need to be created:
   Maximum Length: 255
 - Click Create.
 
-3. Cooldown Time (Ensures revert doesn't run immediately)
+3. Cooldown Timer (Ensures revert doesn't run immediately)
 - Still in Helpers, click + Create Helper again.
 - Select Timer.
 - Set:
