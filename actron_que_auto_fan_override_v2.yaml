@@ -129,13 +129,13 @@ action:
                     }}
           - variables:
               active_zones: >
-                {{
-                  all_zones
-                  | map('expand')
-                  | selectattr('state', 'equalto', 'heat')
-                  | map(attribute='entity_id')
-                  | list
-                }}
+                {% set active = [] %}
+                {% for zone in all_zones %}
+                  {% if states(zone) == 'heat' %}
+                    {% set active = active + [zone] %}
+                  {% endif %}
+                {% endfor %}
+                {{ active }}
           - service: input_text.set_value
             data:
               entity_id: !input active_zones_text
