@@ -70,9 +70,12 @@ trigger:
     minutes: "/5"
 
 condition:
-  - condition: template
-    value_template: >
-      {{ states(season_sensor) in allowed_seasons }}
+  - condition: and
+    conditions:
+      - condition: state
+        entity_id: !input season_sensor
+        match: any
+        state: !input allowed_seasons
 
 action:
   - variables:
@@ -101,7 +104,7 @@ action:
                   | selectattr('state', 'defined')
                   | selectattr('state', 'ne', 'off')
                   | selectattr('attributes.current_temperature', 'defined')
-                  | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold | float)
+                  | selectattr('attributes.current_temperature', '>', (setpoint + (temp_threshold | float)))
                   | list
                 }}
           - condition: template
@@ -154,7 +157,7 @@ action:
                   | max(default=0)
                 }}
           - condition: template
-            value_template: "{{ max_temp <= setpoint + 1 }}"
+            value_template: "{{ max_temp <= (setpoint + 1) }}"
           - if:
               - condition: template
                 value_template: "{{ logging_enabled }}"
