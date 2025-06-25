@@ -87,8 +87,11 @@ variables:
 condition:
   - condition: template
     value_template: >
-      {% set season = states(season_sensor) %}
-      {{ season in allowed_seasons }}
+      {% if season_sensor is defined and allowed_seasons is defined and states(season_sensor) %}
+        {{ states(season_sensor) in allowed_seasons }}
+      {% else %}
+        false
+      {% endif %}
 
 action:
   - choose:
