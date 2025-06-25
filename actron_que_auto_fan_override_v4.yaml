@@ -173,6 +173,9 @@ action:
             value_template: >
               {% set zone_str = states(active_zones_text) | string %}
               {{ zone_str not in ['unknown', 'unavailable', 'none', ''] }}
+          - condition: state
+            entity_id: !input main_controller
+            state: 'fan_only'
         sequence:
           - variables:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
