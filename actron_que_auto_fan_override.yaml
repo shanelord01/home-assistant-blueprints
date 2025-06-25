@@ -67,14 +67,19 @@ blueprint:
 
 trigger:
   - platform: state
-    entity_id: !input upstairs_zones
-    attribute: current_temperature
-  - platform: state
     entity_id: !input main_controller
   - platform: state
     entity_id: !input override_flag
   - platform: time_pattern
     minutes: "/5"
+  - platform: template
+    value_template: >
+      {% set setpoint = state_attr(!input main_controller, 'temperature') | float %}
+      {% for zone in !input upstairs_zones %}
+        {% if state_attr(zone, 'current_temperature') | float > setpoint + (!input temp_threshold | float) %}
+          true
+        {% endif %}
+      {% endfor %}
 
 variables:
   season_sensor: !input season_sensor
