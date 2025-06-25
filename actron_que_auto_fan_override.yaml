@@ -76,16 +76,6 @@ trigger:
   - platform: time_pattern
     minutes: "/5"
 
-variables:
-  season_sensor: !input season_sensor
-  allowed_seasons: !input allowed_seasons
-
-condition:
-  - condition: template
-    value_template: >
-      {% set season = states(season_sensor) %}
-      {{ season in allowed_seasons }}
-
 action:
   - variables:
       all_zones: !input all_zones
@@ -95,9 +85,15 @@ action:
       logging_enabled: !input enable_logging
       override_flag: !input override_flag
       active_zones_text: !input active_zones_text
+      season_sensor: !input season_sensor
+      allowed_seasons: !input allowed_seasons
 
   - choose:
       - conditions:
+          - condition: template
+            value_template: >
+              {% set season = states(season_sensor) %}
+              {{ season in allowed_seasons }}
           - condition: state
             entity_id: !input override_flag
             state: 'off'
