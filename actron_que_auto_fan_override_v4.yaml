@@ -174,7 +174,7 @@ action:
           - condition: template
             value_template: >
               {% set zone_str = states(active_zones_text) | string %}
-              {{ zone_str | trim != '' }}
+              {{ zone_str not in ['unknown', 'unavailable', 'none', ''] }}
         sequence:
           - variables:
               setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
@@ -205,7 +205,7 @@ action:
           - variables:
               zone_str: "{{ states(active_zones_text) | string | default('') }}"
               zone_list: >
-                {% set raw = zone_str.split('||') if zone_str else [] %}
+                {% set raw = zone_str.split('||') if zone_str and zone_str not in ['unknown', 'unavailable'] else [] %}
                 {{ raw | map('trim') | select('match', '^climate\\..+') | list }}
           - repeat:
               for_each: "{{ zone_list | default([]) }}"
