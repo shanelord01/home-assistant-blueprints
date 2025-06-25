@@ -1,0 +1,142 @@
+blueprint:
+  name: Actron Que - Auto Fan Override on Overheat
+  description: >
+    In colder seasons, switch Actron Que system to 'fan_only' mode if upstairs zones 
+    overheat during heating. Automatically revert when temps stabilize.
+  domain: automation
+  input:
+    main_controller:
+      name: Main Controller Entity
+      selector:
+        entity:
+          domain: climate
+    upstairs_zones:
+      name: Upstairs Climate Zones
+      selector:
+        entity:
+          multiple: true
+          domain: climate
+    all_zones:
+      name: All Zone Entities
+      selector:
+        entity:
+          multiple: true
+          domain: climate
+    season_sensor:
+      name: Season Sensor (e.g. sensor.season)
+      selector:
+        entity:
+          domain: sensor
+    allowed_seasons:
+      name: Allowed Seasons (trigger only in these)
+      default:
+        - winter
+        - autumn
+      selector:
+        select:
+          multiple: true
+          options:
+            - spring
+            - summer
+            - autumn
+            - winter
+    temp_threshold:
+      name: Temp Overheat Threshold (°C above setpoint)
+      default: 2
+      selector:
+        number:
+          min: 0.5
+          max: 5
+          step: 0.5
+          unit_of_measurement: °C
+    override_flag:
+      name: Input Boolean - Temp Override Active
+      selector:
+        entity:
+          domain: input_boolean
+    active_zones_text:
+      name: Input Text - Active Zones Storage
+      selector:
+        entity:
+          domain: input_text
+
+variables:
+  setpoint: "{{ state_attr(main_controller, 'temperature') | float }}"
+  upstairs_overheated: >
+    {{ upstairs_zones | selectattr('state', 'ne', 'off')
+                     | selectattr('attributes.current_temperature', 'defined')
+                     | selectattr('attributes.current_temperature', '>', setpoint + temp_threshold)
+                     | list | count > 0 }}
+
+trigger:
+  - platform: template
+    value_template: "{{ upstairs_overheated }}"
+
+condition:
+  - condition: state
+    entity_id: !input main_controller
+    state: 'heat'
+  - condition: template
+    value_template: >
+      {{ state_attr(main_controller, 'hvac_action') == 'heating' }}
+  - condition: template
+    value_template: >
+      {{ state(season_sensor) in allowed_seasons }}
+  - condition: state
+    entity_id: !input override_flag
+    state: 'off'
+
+action:
+  - variables:
+      active_zones: >
+        {{ all_zones | select('is_state', 'heat') | list }}
+  - service: input_text.set_value
+    data:
+      entity_id: !input active_zones_text
+      value: "{{ active_zones | join(',') }}"
+  - service: input_boolean.turn_on
+    target:
+      entity_id: !input override_flag
+  - repeat:
+      for_each: "{{ all_zones }}"
+      sequence:
+        - service: climate.set_hvac_mode
+          data:
+            hvac_mode: fan_only
+          target:
+            entity_id: "{{ repeat.item }}"
+
+mode: restart
+
+# --- Reversion Logic ---
+
+trigger_revert:
+  - platform: time_pattern
+    minutes: "/5"
+
+condition_revert:
+  - condition: state
+    entity_id: !input override_flag
+    state: 'on'
+  - condition: template
+    value_template: >
+      {% set setpoint = state_attr(main_controller, 'temperature') | float %}
+      {% set max_temp = upstairs_zones | map('state_attr', 'current_temperature') | select('defined') | map('float') | max(default=0) %}
+      {{ max_temp <= setpoint + 1 }}
+
+action_revert:
+  - variables:
+      zone_str: "{{ states(active_zones_text) }}"
+      zone_list: >
+        {{ zone_str.split(',') if zone_str else [] }}
+  - repeat:
+      for_each: "{{ zone_list }}"
+      sequence:
+        - service: climate.set_hvac_mode
+          data:
+            hvac_mode: heat
+          target:
+            entity_id: "{{ repeat.item.strip() }}"
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input override_flag
