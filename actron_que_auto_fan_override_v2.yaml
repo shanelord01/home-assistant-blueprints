@@ -149,7 +149,7 @@ action:
                 {% endfor %}
                 {{ ns.active }}
           - service: input_text.set_value
-            data_template:
+            data:
               entity_id: !input active_zones_text
               value: "{{ ((active_zones | join('||')) | b64encode) | string }}"
           - service: input_boolean.turn_on
